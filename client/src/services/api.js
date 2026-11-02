@@ -1,4 +1,29 @@
-const API_BASE = 'http://localhost:5000/api';
+/**
+ * MysteryVerse API Service
+ * 
+ * Dynamically resolves API base URL from import.meta.env.VITE_API_URL,
+ * with resilient fallback for deployed Render environments and local development.
+ */
+
+function resolveApiBase() {
+  const envUrl = import.meta.env.VITE_API_URL;
+
+  // 1. If explicit environment variable is provided, normalize and use it
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
+    const trimmed = envUrl.trim().replace(/\/+$/, '');
+    return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+  }
+
+  // 2. If running on Render in production, automatically point to deployed backend
+  if (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com')) {
+    return 'https://mysteryverse-pg2r.onrender.com/api';
+  }
+
+  // 3. Fallback for local development
+  return 'http://localhost:5000/api';
+}
+
+export const API_BASE = resolveApiBase();
 
 /**
  * Generate a new mystery case via the backend Gemini API
@@ -24,7 +49,8 @@ export async function createCaseAPI({ premise, difficulty = 'Medium' }) {
 export async function getCaseAPI(caseId) {
   const response = await fetch(`${API_BASE}/cases/${caseId}`);
   if (!response.ok) {
-    throw new Error(`Failed to fetch case ${caseId}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to fetch case ${caseId} (${response.status})`);
   }
   return response.json();
 }
@@ -37,7 +63,8 @@ export async function discoverClueAPI(caseId, clueId) {
     method: 'POST'
   });
   if (!response.ok) {
-    throw new Error(`Failed to discover clue ${clueId}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to discover clue ${clueId} (${response.status})`);
   }
   return response.json();
 }
@@ -50,7 +77,8 @@ export async function requestHintAPI(caseId) {
     method: 'POST'
   });
   if (!response.ok) {
-    throw new Error('Failed to request hint');
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to request hint (${response.status})`);
   }
   return response.json();
 }
@@ -67,7 +95,7 @@ export async function submitAccusationAPI(caseId, { accusedId, motive, reasoning
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to submit accusation');
+    throw new Error(errorData.error || `Failed to submit accusation (${response.status})`);
   }
 
   return response.json();
@@ -79,7 +107,8 @@ export async function submitAccusationAPI(caseId, { accusedId, motive, reasoning
 export async function getCaseResultAPI(caseId) {
   const response = await fetch(`${API_BASE}/cases/${caseId}/result`);
   if (!response.ok) {
-    throw new Error('Failed to fetch case result');
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to fetch case result (${response.status})`);
   }
   return response.json();
 }
